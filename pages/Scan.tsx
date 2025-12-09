@@ -1,20 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Upload, Loader2, X } from 'lucide-react';
-import { analyzePrescription } from '../services/geminiService';
-import { savePrescription } from '../services/storageService';
-import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '../context/AuthContext';
 import { ProcessingState } from '../types';
 
 const Scan: React.FC = () => {
   const navigate = useNavigate();
+  const { token, user } = useAuth(); // Assuming token is available in context
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [state, setState] = useState<ProcessingState>({ status: 'idle' });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -24,25 +25,30 @@ const Scan: React.FC = () => {
   };
 
   const processImage = async () => {
-    if (!preview) return;
+    if (!selectedFile || !token) return;
 
     setState({ status: 'processing' });
 
     try {
-      const result = await analyzePrescription(preview);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
 
-      const newPrescription = {
-        id: uuidv4(),
-        imageUrl: preview,
-        medicines: result.medicines || [],
-        doctorName: result.doctorName || 'Unknown',
-        patientName: result.patientName || 'User',
-        createdAt: new Date().toISOString()
-      };
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-prescription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
 
-      savePrescription(newPrescription);
+      if (!response.ok) {
+        throw new Error("Failed to upload prescription");
+      }
+
+      const data = await response.json();
+
       setState({ status: 'complete' });
-      navigate(`/prescription/${newPrescription.id}`);
+      navigate(`/prescription/${data.prescription_id}`);
 
     } catch (error) {
       console.error(error);
@@ -85,7 +91,7 @@ const Scan: React.FC = () => {
               <>
                 <img src={preview} alt="Preview" className="max-h-full max-w-full object-contain z-10" />
                 <button
-                  onClick={() => setPreview(null)}
+                  onClick={() => { setPreview(null); setSelectedFile(null); }}
                   className="absolute top-4 right-4 bg-white/90 p-2 rounded-full shadow-lg z-20 hover:bg-red-50 text-slate-700 hover:text-red-500"
                 >
                   <X size={20} />

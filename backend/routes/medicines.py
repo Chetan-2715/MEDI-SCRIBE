@@ -15,6 +15,28 @@ async def get_prescriptions(user_id: str = Depends(get_current_user), token: str
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/prescriptions/{id}")
+async def get_prescription(id: str, user_id: str = Depends(get_current_user), token: str = Depends(get_token)):
+    try:
+        client = get_authenticated_client(token)
+        # Fetch prescription
+        pres = client.table("prescriptions").select("*").eq("id", id).eq("user_id", user_id).execute()
+        if not pres.data:
+            raise HTTPException(status_code=404, detail="Prescription not found")
+        
+        prescription = pres.data[0]
+        
+        # Fetch medicines
+        meds = client.table("medicines").select("*").eq("prescription_id", id).execute()
+        
+        # Combine
+        prescription["medicines"] = meds.data
+        return prescription
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.delete("/prescriptions/{id}")
 async def delete_prescription(id: str, user_id: str = Depends(get_current_user), token: str = Depends(get_token)):
     try:

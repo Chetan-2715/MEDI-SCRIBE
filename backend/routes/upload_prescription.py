@@ -5,7 +5,6 @@ import os
 import uu
 import uuid
 import base64
-from ocr_service import detect_text_from_path, detect_text
 from gemini_service import extract_medicine_info
 from supabase_client import get_supabase_client, get_authenticated_client
 from .auth import get_current_user, get_token
@@ -22,43 +21,30 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Depen
         # 1. Read file
         content = await file.read()
         
-        # 2. Upload image to Supabase Storage (Optional but recommended)
-        # For now, we will store the base64 in the DB or assume we just process it.
-        # The schema has `image_url`. We should upload to bucket 'prescriptions' if possible.
-        # Handling storage buckets in code generation is tricky without knowing if buckets exist.
-        # We will use a placeholder URL or Base64 data URL if it fits (text field might be small).
-        # Better: Upload to 'prescriptions' bucket.
-        
+        # 2. Upload image to Supabase Storage
         file_ext = file.filename.split(".")[-1]
         file_path = f"{user_id}/{uuid.uuid4()}.{file_ext}"
         
-        # Try uploading to Storage
         try:
             res = client.storage.from_("prescriptions").upload(file_path, content)
-            # Construct public URL
-            # Note: Bucket must be public or use signed url
             project_url = os.environ.get("SUPABASE_URL")
             image_url = f"{project_url}/storage/v1/object/public/prescriptions/{file_path}"
         except Exception as e:
             print(f"Storage upload failed (bucket might be missing): {e}")
-            # Fallback: Use a placeholder or data URI (not recommended for DB size)
             image_url = "https://placehold.co/600x400?text=Prescription"
 
-        # 3. Run OCR
-        ocr_text = detect_text(content)
-        if not ocr_text:
-            raise HTTPException(status_code=400, detail="Could not detect text in image")
-
-        # 4. Gemini Extraction
-        extracted_data = extract_medicine_info(ocr_text)
+        # 3. Gemini Extraction (Direct Vision)
+        extracted_data = extract_medicine_info(content)
         medicines = extracted_data.get("medicines", [])
+        doctor_name = extracted_data.get("doctor_name", "Unknown")
+        patient_name = extracted_data.get("patient_name", "Unknown")
 
-        # 5. Insert Prescription
+        # 4. Insert Prescription
         prescription_data = {
             "user_id": user_id,
             "image_url": image_url,
-            "doctor_name": "Unknown", # Gemini could extract this too if added to prompt
-            "patient_name": "Unknown",
+            "doctor_name": doctor_name,
+            "patient_name": patient_name,
             "notes": "Uploaded via app"
         }
         
@@ -68,7 +54,7 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Depen
             
         prescription_id = pres_res.data[0]['id']
 
-        # 6. Insert Medicines
+        # 5. Insert Medicines
         final_medicines = []
         for med in medicines:
             med_data = {
@@ -81,9 +67,6 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Depen
                 "duration_days": med.get("duration_days"),
                 "purpose": med.get("purpose")
             }
-            # Clean None values if DB has strict checks or defaults
-            # (Supabase handles nulls fine usually)
-            
             final_medicines.append(med_data)
         
         if final_medicines:
@@ -92,7 +75,8 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Depen
         return {
             "prescription_id": prescription_id,
             "medicines": final_medicines,
-            "ocr_text_preview": ocr_text[:100] + "..."
+            "doctor_name": doctor_name,
+            "patient_name": patient_name
         }
 
     except Exception as e:

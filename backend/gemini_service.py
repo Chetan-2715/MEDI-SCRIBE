@@ -20,18 +20,23 @@ model = genai.GenerativeModel(
 )
 
 SYSTEM_PROMPT = """
-You are a medical assistant OCR expert. Your job is to extract structured medicine data from the raw text provided.
-Analyze the text and extract a list of medicines with these fields:
-- name: (string) Medicine name (e.g., Augmentin 625)
-- type: (string) One of: tablet, syrup, ointment, injection, other
-- dosage_pattern: (string) e.g., 1-0-1, 1-1-1, OD, BD, TDS. If not found, use null.
-- instructions: (string) e.g., After food, Before food.
-- quantity: (number) Total count of tablets/bottles if mentioned.
-- duration_days: (number) Duration in days if mentioned.
-- purpose: (string) Reason for medication (e.g. Pain relief, Antibiotic) - Infer this from the medicine name if not explicitly stated.
+You are a medical assistant expert. Your job is to analyze the prescription image provided and extract structured data.
+Extract the following fields:
+- doctor_name: (string) Name of the doctor/hospital (e.g. Dr. Smith). Use "Unknown" if not found.
+- patient_name: (string) Name of the patient. Use "Unknown" if not found.
+- medicines: (list) A list of medicines with these fields:
+    - name: (string) Medicine name (e.g., Augmentin 625)
+    - type: (string) One of: tablet, syrup, ointment, injection, other
+    - dosage_pattern: (string) e.g., 1-0-1, 1-1-1, OD, BD, TDS. If not found, use null.
+    - instructions: (string) e.g., After food, Before food.
+    - quantity: (number) Total count of tablets/bottles if mentioned.
+    - duration_days: (number) Duration in days if mentioned.
+    - purpose: (string) Reason for medication (e.g. Pain relief, Antibiotic) - Infer this from the medicine name if not explicitly stated.
 
 Output strictly valid JSON with this structure:
 {
+  "doctor_name": "...",
+  "patient_name": "...",
   "medicines": [
     { ... }
   ]
@@ -39,22 +44,17 @@ Output strictly valid JSON with this structure:
 If duration_days is missing but quantity and dosage_pattern are present, leave it null, we will calculate it.
 """
 
-def extract_medicine_info(ocr_text: str) -> dict:
+def extract_medicine_info(image_bytes: bytes) -> dict:
     """
-    Sends OCR text to Gemini and gets structured JSON.
+    Sends prescription image to Gemini and gets structured JSON.
     Auto-calculates duration if missing.
     """
-    prompt = f"Extract medicine details from this prescription text:\n\n{ocr_text}"
-    
-    chat_session = model.start_chat(
-        history=[
-            {"role": "user", "parts": [SYSTEM_PROMPT]},
-        ]
-    )
-    
-    response = chat_session.send_message(prompt)
-    
     try:
+        response = model.generate_content([
+            {"mime_type": "image/jpeg", "data": image_bytes},
+            SYSTEM_PROMPT
+        ])
+        
         data = json.loads(response.text)
         medicines = data.get("medicines", [])
         
@@ -63,8 +63,8 @@ def extract_medicine_info(ocr_text: str) -> dict:
             if not med.get("duration_days") and med.get("quantity") and med.get("dosage_pattern"):
                 med["duration_days"] = calculate_duration(med["quantity"], med["dosage_pattern"])
                 
-        return {"medicines": medicines}
-    except json.JSONDecodeError as e:
+        return data # Returns full data including doctor/patient names
+    except Exception as e:
         print(f"Error decoding JSON from Gemini: {e}")
-        return {"medicines": []}
+        return {"medicines": [], "doctor_name": "Unknown", "patient_name": "Unknown"}
 

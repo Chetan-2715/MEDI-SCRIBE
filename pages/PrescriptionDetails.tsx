@@ -1,32 +1,71 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPrescriptionById } from '../services/storageService';
+import { useAuth } from '../context/AuthContext';
 import { Prescription, Medicine } from '../types';
 import MedicineCard from '../components/MedicineCard';
-import { ArrowLeft, User, ExternalLink } from 'lucide-react';
+import { ArrowLeft, User, ExternalLink, Loader2 } from 'lucide-react';
 
 const PrescriptionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [prescription, setPrescription] = useState<Prescription | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      const data = getPrescriptionById(id);
-      if (data) {
-        setPrescription(data);
-      } else {
-        navigate('/');
-      }
+    if (id && token) {
+      fetchPrescription(id);
     }
-  }, [id, navigate]);
+  }, [id, token, navigate]);
+
+  const fetchPrescription = async (prescriptionId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/prescriptions/${prescriptionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch prescription");
+      }
+
+      const data = await response.json();
+      // Check if data structure matches type or needs mapping
+      // Backend returns { ...prescription_row, medicines: [...] } ideally
+      // We'll verify backend response structure in next step.
+      // Assuming backend returns: { id, doctor_name, patient_name, image_url, created_at, medicines: [] }
+      // Map to frontend type
+      const mapped: Prescription = {
+        id: data.id,
+        doctorName: data.doctor_name,
+        patientName: data.patient_name,
+        imageUrl: data.image_url,
+        createdAt: data.created_at,
+        medicines: data.medicines.map((m: any) => ({
+          medicine_name: m.name,
+          medicine_type: m.type,
+          dosage_pattern: m.dosage_pattern,
+          instructions: m.instructions,
+          purpose: m.purpose,
+          duration_days: m.duration_days,
+          total_quantity: m.total_quantity
+        }))
+      };
+
+      setPrescription(mapped);
+    } catch (err) {
+      console.error(err);
+      navigate('/dashboard'); // Redirect on error
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getTimingConfig = (instructions: string) => {
     const isBeforeFood = instructions.toLowerCase().includes('before') ||
       instructions.toLowerCase().includes('empty stomach');
 
-    // Returns HH:MM in 24h format
     if (isBeforeFood) {
       return { morning: '09:15', afternoon: '13:15', evening: '19:15' };
     } else {
@@ -35,8 +74,8 @@ const PrescriptionDetails: React.FC = () => {
   };
 
   const getDoseSlots = (pattern: string) => {
+    if (!pattern) return ['morning'];
     const p = pattern.toUpperCase().trim();
-    // Default fallback
     let slots = ['morning'];
 
     const tripleMatch = p.match(/(\d+)-(\d+)-(\d+)/);
@@ -57,7 +96,6 @@ const PrescriptionDetails: React.FC = () => {
       slots = ['afternoon', 'evening'];
     }
 
-    // Ensure we have at least one slot
     if (slots.length === 0) slots = ['morning'];
 
     return slots;
@@ -68,23 +106,18 @@ const PrescriptionDetails: React.FC = () => {
     const slots = getDoseSlots(medicine.dosage_pattern);
     const duration = medicine.duration_days || 1;
 
-    // We pick the first slot time to anchor the recurring event.
-    // The description will contain the full details.
     const firstSlot = slots[0] as keyof typeof times;
-    const timeStr = times[firstSlot]; // e.g., "10:00"
+    const timeStr = times[firstSlot] || "09:00";
 
     const now = new Date();
-    // Start tomorrow
     const startDate = new Date(now);
     startDate.setDate(startDate.getDate() + 1);
 
-    // Parse timeStr
     const [hours, minutes] = timeStr.split(':').map(Number);
     startDate.setHours(hours, minutes, 0, 0);
     const endDate = new Date(startDate);
-    endDate.setHours(hours, minutes + 15, 0, 0); // 15 min duration
+    endDate.setHours(hours, minutes + 15, 0, 0);
 
-    // Format to UTC string: YYYYMMDDTHHMMSSZ
     const toISOString = (date: Date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
 
     const startUTC = toISOString(startDate);
@@ -111,6 +144,14 @@ Remember to take your medicine!
     window.open(url.toString(), '_blank');
   };
 
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-teal-600" size={40} />
+      </div>
+    );
+  }
+
   if (!prescription) return null;
 
   return (
@@ -131,7 +172,6 @@ Remember to take your medicine!
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content: Medicines */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -165,7 +205,6 @@ Remember to take your medicine!
           </div>
         </div>
 
-        {/* Sidebar: Image */}
         <div className="lg:col-span-1">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm sticky top-24">
             <h3 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Original Scan</h3>
