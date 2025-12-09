@@ -1,20 +1,66 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Medi-Scribe 🏥💊
 
-# Run and deploy your AI Studio app
+**Medi-Scribe** is an intelligent healthcare assistant that simplifies prescription management. By leveraging **OCR** , it digitizes handwritten medical prescriptions, extracts medicine details, and organizes them into a user-friendly dashboard.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1tNh0aeP346f122-rSfz-Bb_h6vLv1xKQ
-
-## Run Locally
-
-**Prerequisites:**  Node.js
+## 🚀 Features
 
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+*   **📄 Smart Digitization**: Upload prescription images to automatically extract patient names, medicines, dosages, and instructions.
+*   **🧠 AI-Powered**: Uses **Google Gemini 1.5 Flash** to interpret complex handwriting and medical context.
+
+*   **🔔 Medication Management**: View and manage your prescriptions and medicines in one place.
+
+## 🛠️ Tech Stack
+
+### Frontend
+-   **Framework**: React (Vite)
+-   **Language**: TypeScript
+-   **Styling**: Tailwind CSS
+-   **Icons**: Lucide React
+
+### Backend
+-   **Framework**: FastAPI (Python)
+-   **AI Model**: Google Gemini 1.5 Flash
+-   **OCR**: Tesseract / Gemini Vision
+-   **Server**: Uvicorn
+
+
+---
+
+## 📦 Installation & Setup
+
+### Prerequisites
+-   Node.js & npm
+-   Python 3.8+
+-   Supabase Account
+-   Google Gemini API Key
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Chetan-2715/MEDI-SCRIBE.git
+cd MEDI-SCRIBE
+```
+
+### 2. Backend Setup
+Navigate to the backend directory and set up the Python environment.
+
+```bash
+cd backend
+# Install Dependencies
+pip install -r requirements.txt
+python -m uvicorn main:app --reload
+```
+
+### 3. Frontend Setup
+Open a new terminal and navigate to the root directory.
+
+```bash
+# Install Dependencies
+npm install
+npm run dev
+```
+
+---
+
+## 🤝 Contributing
+Contributions are welcome! <br>Please feel free to submit a Pull Request.
