@@ -1,0 +1,7 @@
+{
+  "name": "Medi-Scribe",
+  "description": "AI-powered prescription interpreter that extracts medicine details, dosages, and creates calendar reminders.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

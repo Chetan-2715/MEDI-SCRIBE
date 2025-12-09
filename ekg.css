@@ -1,0 +1,15 @@
+@keyframes ekg_draw {
+    0% {
+        stroke-dashoffset: 1000;
+    }
+
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+.animate-ekg {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: ekg_draw 2s linear infinite;
+}
