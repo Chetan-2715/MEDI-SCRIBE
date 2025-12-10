@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -9,8 +8,6 @@ import PrescriptionDetails from './pages/PrescriptionDetails';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import VerifyEmail from './pages/VerifyEmail';
-import CompleteProfile from './pages/CompleteProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Loader2 } from 'lucide-react';
@@ -49,7 +46,6 @@ const App: React.FC = () => {
             {/* Auth Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
 
             {/* Protected Dashboard Routes */}
             <Route element={<ProtectedRoute />}>
@@ -57,7 +53,6 @@ const App: React.FC = () => {
               <Route path="/scan" element={<Scan />} />
               <Route path="/prescription/:id" element={<PrescriptionDetails />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/complete-profile" element={<CompleteProfile />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

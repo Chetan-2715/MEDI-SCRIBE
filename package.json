@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "@google/genai": "^1.31.0",
+    "@react-oauth/google": "^0.12.2",
     "@supabase/supabase-js": "^2.86.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.25",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.556.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

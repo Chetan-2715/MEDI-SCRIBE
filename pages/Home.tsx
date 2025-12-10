@@ -1,22 +1,41 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPrescriptions } from '../services/storageService';
 import { Prescription } from '../types';
 import { FileText, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { deletePrescription } from '../services/storageService';
 
 const Home: React.FC = () => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const [loading, setLoading] = useState(true);
 
   const fetchPrescriptions = async () => {
     if (!token) return;
-    // ... (Add API fetch later or keep local for now if API not ready)
-    // For this step, we will use local storage but add delete UI
-    setPrescriptions(getPrescriptions());
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/prescriptions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Map DB columns to Frontend Types
+        const mapped: Prescription[] = data.map((p: any) => ({
+          id: p.id,
+          imageUrl: p.image_url,
+          createdAt: p.created_at,
+          doctorName: p.doctor_name,
+          patientName: p.patient_name,
+          medicines: p.medicines?.map((m: any) => ({ ...m, medicine_name: m.name })) || [] // Handle medicines if joined
+        }));
+        setPrescriptions(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch prescriptions", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -25,17 +44,22 @@ const Home: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (!token) return;
+
     if (window.confirm('Are you sure you want to delete this prescription?')) {
       try {
-        // Try API delete if token exists
-        if (token) {
-          await deletePrescription(id, token);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/prescriptions/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          setPrescriptions(prev => prev.filter(p => p.id !== id));
+        } else {
+          alert("Failed to delete");
         }
-        // Also update local state/storage for now
-        const updated = prescriptions.filter(p => p.id !== id);
-        setPrescriptions(updated);
-        // Update local storage manually for immediate effect in this demo version
-        localStorage.setItem('mediscribe_prescriptions', JSON.stringify(updated));
       } catch (err) {
         console.error("Delete failed", err);
         alert("Failed to delete");
@@ -45,10 +69,10 @@ const Home: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* ... Hero Section remains same ... */}
+      {/* Hero Section */}
       <div className="bg-linear-to-r from-teal-600 to-teal-500 rounded-2xl p-6 lg:p-10 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold mb-2">Welcome Back, {user?.name?.split(' ')[0]}!</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-2">Welcome Back, {user?.name?.split(' ')[0] || "User"}!</h2>
           <p className="opacity-90">You have {prescriptions.length} saved prescriptions.</p>
         </div>
         <button
@@ -62,7 +86,10 @@ const Home: React.FC = () => {
 
       <div>
         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-6">Recent Uploads</h3>
-        {prescriptions.length === 0 ? (
+
+        {loading ? (
+          <div className="text-center py-20 text-slate-400">Loading prescriptions...</div>
+        ) : prescriptions.length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
               <FileText size={32} />
@@ -94,7 +121,6 @@ const Home: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {/* Delete Button */}
                   <button
                     onClick={(e) => handleDelete(e, p.id)}
                     className="p-2 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors z-10"

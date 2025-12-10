@@ -17,9 +17,8 @@ def get_supabase_client() -> Client:
 
 def get_authenticated_client(token: str) -> Client:
     """
-    Returns a new Supabase client instance authenticated with the given user token.
-    This ensures RLS policies are applied correctly for the user.
+    Returns the Supabase client.
+    Since we are using custom auth, we do not pass the token to Supabase.
+    Access control is handled by the backend logic using user_id.
     """
-    client = create_client(url, key)
-    client.postgrest.auth(token)
-    return client
+    return supabase

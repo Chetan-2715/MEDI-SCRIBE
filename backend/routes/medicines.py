@@ -10,7 +10,7 @@ async def get_prescriptions(user_id: str = Depends(get_current_user), token: str
     try:
         client = get_authenticated_client(token)
         # Filter by user_id manually as we are using service role client usually
-        res = client.table("prescriptions").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        res = client.table("prescriptions").select("*, medicines(*)").eq("user_id", user_id).order("created_at", desc=True).execute()
         return res.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

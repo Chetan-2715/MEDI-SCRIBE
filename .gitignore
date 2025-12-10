@@ -26,13 +26,17 @@ build
 backend/.env
 
 # Python
-backend/venv
+backend/venv/
 venv/
 ENV/
 env/
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 htmlcov/
 .tox/
 .nox/
@@ -45,6 +49,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.mypy_cache/
 input/
 
 # IDEs

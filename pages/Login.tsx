@@ -3,49 +3,43 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Activity, Mail, Loader2, ArrowLeft, KeyRound } from 'lucide-react';
 import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // State for flow control
-  const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await authService.sendOtp(email);
-      setStep('otp');
+      const response = await authService.login(email, password);
+      login(response);
+      navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send OTP');
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSuccess = async (credentialResponse: any) => {
     setLoading(true);
     setError('');
-
     try {
-      const response = await authService.verifyOtp(email, otp);
+      if (!credentialResponse.credential) throw new Error("Google Login Failed");
+      const response = await authService.googleLogin(credentialResponse.credential);
       login(response);
-
-      if (!response.user.name) {
-        navigate('/complete-profile');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid OTP');
+      setError(err instanceof Error ? err.message : 'Google Login failed');
     } finally {
       setLoading(false);
     }
@@ -61,12 +55,8 @@ const Login: React.FC = () => {
           <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center text-white mb-4">
             <Activity size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            {step === 'email' ? 'Welcome' : 'Enter One-Time Password'}
-          </h1>
-          <p className="text-slate-500">
-            {step === 'email' ? 'Sign in or sign up with your email' : `We sent a code to ${email}`}
-          </p>
+          <h1 className="text-2xl font-bold text-slate-800">Welcome Back</h1>
+          <p className="text-slate-500">Sign in to continue</p>
         </div>
 
         {error && (
@@ -75,51 +65,40 @@ const Login: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={step === 'email' ? handleSendOtp : handleVerifyOtp} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <Mail size={18} />
+              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                placeholder="you@example.com"
+              />
+            </div>
+          </div>
 
-          {step === 'email' ? (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Mail size={18} />
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
-                  placeholder="Your Email"
-                />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <KeyRound size={18} />
               </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                placeholder="••••••••"
+              />
             </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">OTP Code</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <KeyRound size={18} />
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all tracking-widest text-center text-lg font-mono"
-                  placeholder="12345678"
-                  maxLength={8}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setStep('email')}
-                className="text-xs text-teal-600 hover:text-teal-700 mt-2 font-medium"
-              >
-                Change Email
-              </button>
-            </div>
-          )}
+          </div>
 
           <div className="pt-2">
             <button
@@ -127,14 +106,24 @@ const Login: React.FC = () => {
               disabled={loading}
               className="w-full bg-teal-600 text-white py-3 rounded-xl font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                step === 'email' ? 'Send OTP' : 'Verify & Login'
-              )}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign In'}
             </button>
           </div>
         </form>
+
+        <div className="flex items-center my-6">
+          <div className="flex-1 border-t border-slate-200"></div>
+          <span className="px-3 text-sm text-slate-400">OR</span>
+          <div className="flex-1 border-t border-slate-200"></div>
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google Login Failed")}
+            useOneTap
+          />
+        </div>
 
         <div className="mt-6 text-center text-sm text-slate-500">
           Don't have an account?{' '}
