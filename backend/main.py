@@ -4,32 +4,30 @@ from routes import upload_prescription, medicines, reminders, auth
 
 app = FastAPI(title="Medi-Scribe Backend")
 
+# Temporary logging for debugging
 @app.middleware("http")
 async def log_requests(request, call_next):
     print(f"Incoming Request: {request.method} {request.url}")
     response = await call_next(request)
-    print(f"Response Status: {response.status_code}")
     return response
 
-# CORS Setup
+# CORS Config
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"http://(?:192\.168\.\d+\.\d+)(?::\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include Routers
 app.include_router(auth.router)
 app.include_router(upload_prescription.router)
 app.include_router(medicines.router)

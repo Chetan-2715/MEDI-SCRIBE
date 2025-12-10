@@ -9,7 +9,7 @@ from google.auth.transport import requests as google_requests
 
 from supabase_client import get_supabase_client
 from utils.security import hash_password, verify_password, create_access_token, decode_access_token
-from utils.smtp_verifier import verify_email_smtp
+#from utils.smtp_verifier import verify_email_smtp
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 security = HTTPBearer()
@@ -48,8 +48,8 @@ def get_current_user(token: str = Depends(get_token)):
 @router.post("/register")
 async def register(user: UserRegister):
     # 1. SMTP Validation
-    if not verify_email_smtp(user.email):
-         raise HTTPException(status_code=400, detail="Email address does not exist or is undeliverable.")
+    #if not verify_email_smtp(user.email):
+        # raise HTTPException(status_code=400, detail="Email address does not exist or is undeliverable.")
 
     # 2. Check if user exists
     # We use the Service Role (or Anon if RLS allows) client. Backend should ideally have Service Role.
