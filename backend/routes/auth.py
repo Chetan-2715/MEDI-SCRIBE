@@ -147,4 +147,8 @@ async def google_login(login_data: GoogleLogin):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid Google Token")
     except Exception as e:
+         # Log the exact error for debugging
+         print(f"Google Login Error: {e}")
+         if "Connection aborted" in str(e) or "Remote end closed" in str(e):
+             raise HTTPException(status_code=503, detail="Connection to Google failed. Please try again.")
          raise HTTPException(status_code=500, detail=str(e))

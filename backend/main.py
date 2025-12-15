@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import upload_prescription, medicines, reminders, auth
+from routes import upload_prescription, medicines, reminders, auth, verify_medicine
 
 app = FastAPI(title="Medi-Scribe Backend")
 
@@ -32,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(upload_prescription.router)
 app.include_router(medicines.router)
 app.include_router(reminders.router)
+app.include_router(verify_medicine.router)
 
 @app.get("/")
 def read_root():

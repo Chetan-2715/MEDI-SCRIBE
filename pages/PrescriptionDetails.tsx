@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Prescription, Medicine } from '../types';
 import MedicineCard from '../components/MedicineCard';
+import MedicineVerifier from '../components/MedicineVerifier';
 import { ArrowLeft, User, ExternalLink, Loader2 } from 'lucide-react';
 
 const PrescriptionDetails: React.FC = () => {
@@ -205,8 +206,11 @@ Remember to take your medicine!
           </div>
         </div>
 
-        <div className="lg:col-span-1">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm sticky top-24">
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          {/* New Feature: Medicine Verifier */}
+          <MedicineVerifier prescriptionId={prescription.id} />
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
             <h3 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Original Scan</h3>
             <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer" onClick={() => window.open(prescription.imageUrl, '_blank')}>
               <img src={prescription.imageUrl} alt="Original" className="w-full h-auto object-cover" />

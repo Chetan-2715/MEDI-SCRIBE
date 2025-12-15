@@ -8,16 +8,78 @@ interface MedicineCardProps {
   onAddToCalendar?: () => void;
 }
 
+const TargetIcon = ({ size = 20, className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M22 2 12 12" />
+  </svg>
+);
+
+const SyrupIcon = ({ size = 20, className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+  >
+    <path d="M9 3h6v4H9z" />
+    <path d="M12 3v4" />
+    <path d="M15 7h-6L5 13a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4l-4-6Z" />
+    <path d="M14 13h-4" />
+  </svg>
+);
+
+const OintmentIcon = ({ size = 20, className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+  >
+    <path d="m14 2 4 4L7 17H3v-4L14 2Z" />
+    <path d="m10 6 4 4" />
+    <path d="m16 22 4-4" />
+    <path d="M2 22h4" />
+  </svg>
+);
+
 const MedicineCard: React.FC<MedicineCardProps> = ({ medicine, onAddToCalendar }) => {
-  
+
   const getMedicineIcon = (type?: string) => {
     switch (type?.toLowerCase()) {
       case 'injection':
         return <Syringe size={20} />;
       case 'syrup':
-        return <Droplet size={20} />;
+        return <SyrupIcon size={20} />;
       case 'ointment':
-        return <FlaskConical size={20} />;
+      case 'cream':
+      case 'gel':
+        return <OintmentIcon size={20} />;
       case 'tablet':
       default:
         return <Pill size={20} />;
@@ -33,7 +95,10 @@ const MedicineCard: React.FC<MedicineCardProps> = ({ medicine, onAddToCalendar }
     switch (type?.toLowerCase()) {
       case 'injection': return 'bg-red-50 text-red-700';
       case 'syrup': return 'bg-amber-50 text-amber-700';
-      case 'ointment': return 'bg-purple-50 text-purple-700';
+      case 'ointment':
+      case 'cream':
+      case 'gel':
+        return 'bg-purple-50 text-purple-700';
       default: return 'bg-blue-50 text-blue-700';
     }
   };
@@ -44,14 +109,12 @@ const MedicineCard: React.FC<MedicineCardProps> = ({ medicine, onAddToCalendar }
         <div>
           <h3 className="text-lg font-bold text-slate-800">{medicine.medicine_name}</h3>
           <div className="flex gap-2 mt-1">
-            <span className="inline-block bg-teal-50 text-teal-700 text-xs px-2 py-0.5 rounded-full font-medium">
-              {medicine.purpose}
-            </span>
-             {medicine.medicine_type && (
-                <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium border border-opacity-20 ${getTypeColor(medicine.medicine_type).replace('bg-', 'border-').replace('text-', 'text-slate-500 ')}`}>
-                  {getMedicineTypeLabel(medicine.medicine_type)}
-                </span>
-             )}
+            {/* Removed badge as duplicate info */}
+            {medicine.medicine_type && (
+              <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium border border-opacity-20 ${getTypeColor(medicine.medicine_type).replace('bg-', 'border-').replace('text-', 'text-slate-500 ')}`}>
+                {getMedicineTypeLabel(medicine.medicine_type)}
+              </span>
+            )}
           </div>
         </div>
         <div className={`p-2 rounded-lg ${getTypeColor(medicine.medicine_type)}`}>
@@ -80,13 +143,19 @@ const MedicineCard: React.FC<MedicineCardProps> = ({ medicine, onAddToCalendar }
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-slate-600 mb-4 bg-orange-50 p-2 rounded border border-orange-100">
-        <Info size={16} className="text-orange-500 flex-shrink-0" />
-        <span>{medicine.instructions}</span>
+      <div className="space-y-2 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+        <div className="flex items-start gap-2 text-xs text-slate-600">
+          <Info size={14} className="mt-0.5 text-blue-500 shrink-0" />
+          <p><span className="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Usage:</span> {medicine.instructions || 'As advised'}</p>
+        </div>
+        <div className="flex items-start gap-2 text-xs text-slate-600">
+          <TargetIcon size={14} className="mt-0.5 text-purple-500 shrink-0" />
+          <p><span className="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Purpose:</span> {medicine.purpose || 'General Health'}</p>
+        </div>
       </div>
 
       {onAddToCalendar && (
-        <button 
+        <button
           onClick={onAddToCalendar}
           className="w-full py-2 bg-white border border-teal-600 text-teal-600 rounded-lg text-sm font-semibold hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 group"
         >
