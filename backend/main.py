@@ -1,33 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import upload_prescription, medicines, reminders, auth, verify_medicine
+import uvicorn
+import os
 
 app = FastAPI(title="Medi-Scribe Backend")
 
-# Temporary logging for debugging
+# 1. Logging Middleware (Helps debug requests on Render)
 @app.middleware("http")
 async def log_requests(request, call_next):
     print(f"Incoming Request: {request.method} {request.url}")
     response = await call_next(request)
     return response
 
-# CORS Config
-# In backend/main.py
-
-origins = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://medi-scribe-khaki.vercel.app/", # <--- Add your future Vercel URL here later
-    "*" # OR just use this star temporarily to allow ALL domains (easiest for now)
-]
-
+# 2. CORS Configuration (CRITICAL for Deployment)
+# We use ["*"] to allow ALL origins. This is the safest way to ensure 
+# Vercel can talk to Render without "Network Error" issues.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Change this to ["*"] for easiest deployment
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 3. Register Routes
 app.include_router(auth.router)
 app.include_router(upload_prescription.router)
 app.include_router(medicines.router)
@@ -39,5 +36,7 @@ def read_root():
     return {"message": "Medi-Scribe API is running"}
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Get port from environment variable or default to 8000
+    port = int(os.environ.get("PORT", 8000))
+    # reload=False for production stability
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
