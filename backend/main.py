@@ -17,7 +17,7 @@ async def log_requests(request, call_next):
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://your-frontend-project-name.vercel.app", # <--- Add your future Vercel URL here later
+    "https://medi-scribe-khaki.vercel.app/", # <--- Add your future Vercel URL here later
     "*" # OR just use this star temporarily to allow ALL domains (easiest for now)
 ]
 
