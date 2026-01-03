@@ -12,22 +12,22 @@ async def log_requests(request, call_next):
     return response
 
 # CORS Config
+# In backend/main.py
+
 origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "https://your-frontend-project-name.vercel.app", # <--- Add your future Vercel URL here later
+    "*" # OR just use this star temporarily to allow ALL domains (easiest for now)
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"http://(?:192\.168\.\d+\.\d+)(?::\d+)?",
+    allow_origins=["*"], # Change this to ["*"] for easiest deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.include_router(auth.router)
 app.include_router(upload_prescription.router)
 app.include_router(medicines.router)
