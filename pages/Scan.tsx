@@ -29,6 +29,10 @@ const Scan: React.FC = () => {
 
     setState({ status: 'processing' });
 
+    // Timeout after 90 seconds
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -38,21 +42,34 @@ const Scan: React.FC = () => {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        body: formData
+        body: formData,
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error("Failed to upload prescription");
+        const errData = await response.json().catch(() => ({ detail: 'Server error' }));
+        throw new Error(errData.detail || `Failed (${response.status})`);
       }
 
       const data = await response.json();
 
+      if (!data.medicines || data.medicines.length === 0) {
+        setState({ status: 'error', message: 'Could not extract medicines from the prescription. The AI service may be temporarily unavailable. Please try again.' });
+        return;
+      }
+
       setState({ status: 'complete' });
       navigate(`/prescription/${data.prescription_id}`);
 
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error(error);
-      setState({ status: 'error', message: 'Failed to analyze prescription. Please try again.' });
+      const msg = error.name === 'AbortError'
+        ? 'Prescription scan timed out. The AI service may be busy. Please try again.'
+        : `Prescription scan failed: ${error.message || 'Unknown error'}`;
+      setState({ status: 'error', message: msg });
     }
   };
 
@@ -83,6 +100,12 @@ const Scan: React.FC = () => {
             Our AI is deciphering the handwriting and extracting structured data.
             <br /><span className="text-xs opacity-70 mt-2 block">Powered by Gemini 2.0 Flash</span>
           </p>
+          <button
+            onClick={() => setState({ status: 'error', message: 'Analysis cancelled. You can try again.' })}
+            className="mt-6 px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
+          >
+            Cancel
+          </button>
         </div>
       ) : (
         <>

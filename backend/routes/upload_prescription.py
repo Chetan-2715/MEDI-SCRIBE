@@ -1,58 +1,44 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import List
-import shutil
 import os
-import uu
 import uuid
 import base64
 from gemini_service import extract_medicine_info
-from supabase_client import get_supabase_client, get_authenticated_client
+from db import query, execute, execute_many
 from .auth import get_current_user, get_token
 
 router = APIRouter()
-supabase = get_supabase_client()
 
 @router.post("/upload-prescription")
-async def upload_prescription(file: UploadFile = File(...), user_id: str = Depends(get_current_user), token: str = Depends(get_token)):
+async def upload_prescription(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
     try:
-        # Use authenticated client for RLS
-        client = get_authenticated_client(token)
-
         # 1. Read file
         content = await file.read()
-        
-        # 2. Upload image to Supabase Storage
-        file_ext = file.filename.split(".")[-1]
-        file_path = f"{user_id}/{uuid.uuid4()}.{file_ext}"
-        
-        try:
-            res = client.storage.from_("prescriptions").upload(file_path, content)
-            project_url = os.environ.get("SUPABASE_URL")
-            image_url = f"{project_url}/storage/v1/object/public/prescriptions/{file_path}"
-        except Exception as e:
-            print(f"Storage upload failed (bucket might be missing): {e}")
-            image_url = "https://placehold.co/600x400?text=Prescription"
 
-        # 3. Gemini Extraction (Direct Vision)
+        # 2. Store image as base64 data URL (no external storage needed)
+        file_ext = file.filename.split(".")[-1].lower()
+        mime_type = f"image/{file_ext}" if file_ext in ["png", "jpg", "jpeg", "gif", "webp"] else "image/jpeg"
+        image_b64 = base64.b64encode(content).decode("utf-8")
+        image_url = f"data:{mime_type};base64,{image_b64}"
+
+        # 3. Gemini Extraction
         extracted_data = extract_medicine_info(content)
         medicines = extracted_data.get("medicines", [])
         doctor_name = extracted_data.get("doctor_name", "Unknown")
         patient_name = extracted_data.get("patient_name", "Unknown")
 
         # 4. Insert Prescription
-        prescription_data = {
-            "user_id": user_id,
-            "image_url": image_url,
-            "doctor_name": doctor_name,
-            "patient_name": patient_name,
-            "notes": "Uploaded via app"
-        }
-        
-        pres_res = client.table("prescriptions").insert(prescription_data).execute()
-        if not pres_res.data:
+        pres = execute(
+            """INSERT INTO prescriptions (user_id, image_url, doctor_name, patient_name, notes)
+               VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+            (user_id, image_url, doctor_name, patient_name, "Uploaded via app"),
+            returning=True
+        )
+
+        if not pres:
             raise HTTPException(status_code=500, detail="Failed to save prescription")
-            
-        prescription_id = pres_res.data[0]['id']
+
+        prescription_id = str(pres["id"])
 
         # 5. Insert Medicines
         final_medicines = []
@@ -68,9 +54,23 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Depen
                 "purpose": med.get("purpose")
             }
             final_medicines.append(med_data)
-        
+
         if final_medicines:
-            client.table("medicines").insert(final_medicines).execute()
+            for med_data in final_medicines:
+                execute(
+                    """INSERT INTO medicines (prescription_id, name, type, dosage_pattern, instructions, total_quantity, duration_days, purpose)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        med_data["prescription_id"],
+                        med_data["name"],
+                        med_data["type"],
+                        med_data["dosage_pattern"],
+                        med_data["instructions"],
+                        med_data["total_quantity"],
+                        med_data["duration_days"],
+                        med_data["purpose"]
+                    )
+                )
 
         return {
             "prescription_id": prescription_id,
@@ -79,6 +79,8 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Depen
             "patient_name": patient_name
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error in upload: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -25,7 +25,7 @@ class PrescriptionResponse(typing.TypedDict):
 
 # Configure model with the schema
 model = genai.GenerativeModel(
-    model_name="gemini-flash-latest",
+    model_name="gemini-2.5-flash",
     generation_config={
         "response_mime_type": "application/json",
         "response_schema": PrescriptionResponse
@@ -49,40 +49,57 @@ Analyze the image and extract the medicine list.
 def extract_medicine_info(image_bytes: bytes) -> dict:
     """
     Sends prescription image to Gemini with strict schema enforcement.
+    Includes retry logic for rate limit errors.
     """
-    try:
-        response = model.generate_content([
-            {"mime_type": "image/jpeg", "data": image_bytes},
-            SYSTEM_PROMPT
-        ])
-        
-        data = json.loads(response.text)
-        medicines = data.get("medicines", [])
-        
-        # Post-processing
-        for med in medicines:
-            # 1. MAP BACK: Move the detailed explanation to the 'purpose' key
-            # This ensures it saves to your existing DB column "purpose"
-            if "medical_explanation" in med:
-                med["purpose"] = med.pop("medical_explanation")
-            else:
-                med["purpose"] = "General Health"
+    import time as _time
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"[Gemini] Starting prescription analysis (attempt {attempt+1}/{max_retries})...")
+            response = model.generate_content(
+                [
+                    {"mime_type": "image/jpeg", "data": image_bytes},
+                    SYSTEM_PROMPT
+                ],
+                request_options={"timeout": 60}
+            )
+            print("[Gemini] Analysis complete.")
+            
+            data = json.loads(response.text)
+            medicines = data.get("medicines", [])
+            
+            # Post-processing
+            for med in medicines:
+                if "medical_explanation" in med:
+                    med["purpose"] = med.pop("medical_explanation")
+                else:
+                    med["purpose"] = "General Health"
 
-            # 2. Fix type case
-            if med.get("type"):
-                med["type"] = med["type"].lower()
+                if med.get("type"):
+                    med["type"] = med["type"].lower()
 
-            # 3. Fix duration
-            q = med.get("quantity")
-            d = med.get("dosage_pattern")
-            if (not med.get("duration_days") or med["duration_days"] == 0) and q and d:
-                med["duration_days"] = calculate_duration(q, d)
-                
-        return data
+                q = med.get("quantity")
+                d = med.get("dosage_pattern")
+                if (not med.get("duration_days") or med["duration_days"] == 0) and q and d:
+                    med["duration_days"] = calculate_duration(q, d)
+                    
+            return data
 
-    except Exception as e:
-        print(f"Gemini Analysis Failed: {e}")
-        return {"medicines": [], "doctor_name": "Unknown", "patient_name": "Unknown"}
+        except Exception as e:
+            err_str = str(e).lower()
+            print(f"[Gemini] Attempt {attempt+1} failed: {type(e).__name__}: {e}")
+            
+            # Retry on rate limit / quota errors
+            if ("quota" in err_str or "rate" in err_str or "429" in err_str or "resource_exhausted" in err_str) and attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 10  # 10s, 20s
+                print(f"[Gemini] Rate limited. Waiting {wait_time}s before retry...")
+                _time.sleep(wait_time)
+                continue
+            
+            # Non-retryable or final attempt
+            print(f"[Gemini] Analysis Failed permanently: {type(e).__name__}: {e}")
+            return {"medicines": [], "doctor_name": "Unknown", "patient_name": "Unknown"}
 
 # --- Verification Feature (Kept Same) ---
 
@@ -94,7 +111,7 @@ class VerificationResult(typing.TypedDict):
     replacement_for: str
 
 model_verify = genai.GenerativeModel(
-    model_name="gemini-flash-latest",
+    model_name="gemini-2.5-flash",
     generation_config={
         "response_mime_type": "application/json",
         "response_schema": VerificationResult
