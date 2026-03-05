@@ -12,3 +12,4 @@ email-validator==2.1.0
 requests==2.31.0
 bcrypt==3.2.2
 typing_extensions
+google-auth==2.48.0
