@@ -45,7 +45,7 @@
 ### **Backend**
 * 🐍 **FastAPI** - High-performance Python REST API.
 * 🧠 **Google Gemini AI** - The intelligence behind OCR and Vision analysis.
-* 🗄️ **Supabase** - PostgreSQL Database & Real-time Storage.
+* 🗄️ **Neon** - Serverless PostgreSQL Database.
 * 🔒 **JWT & OAuth2** - Enterprise-grade security handling.
 
 ---
@@ -55,7 +55,7 @@
 ### Prerequisites
 * Node.js & npm
 * Python 3.10+
-* Supabase Account
+* Neon Serverless Postgres Account
 * Google Cloud Console Project (for OAuth)
 
 ### 1️⃣ Clone the Repository
@@ -108,16 +108,13 @@ Create a `.env` file in **Frontend** and **Backend** directories.
 ```env
 VITE_API_URL=[http://127.0.0.1:8000](http://127.0.0.1:8000)
 VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 **Backend (`backend/.env`)**
 
 ```env
+DATABASE_URL=postgresql://user:password@endpoint.neon.tech/neondb?sslmode=require
 GEMINI_API_KEY=your_gemini_api_key
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_service_role_key
 GOOGLE_CLIENT_ID=your_google_client_id_here
 SECRET_KEY=your_jwt_secret
 ```
