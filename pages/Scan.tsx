@@ -4,6 +4,47 @@ import { Camera, Upload, Loader2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ProcessingState } from '../types';
 
+const compressImage = async (file: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Scale down to max 1200px width/height for faster processing
+        const maxDimension = 1200;
+        if (width > height && width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Compression failed'));
+          }
+        }, 'image/jpeg', 0.8);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 const Scan: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -29,13 +70,15 @@ const Scan: React.FC = () => {
 
     setState({ status: 'processing' });
 
-    // Timeout after 90 seconds
+    // Timeout after 180 seconds to allow for backend retries
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    const timeoutId = setTimeout(() => controller.abort(new Error("TimeoutError")), 180000);
 
     try {
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      // Compress the image before uploading to speed up network and AI processing time
+      const compressedBlob = await compressImage(selectedFile);
+      formData.append('file', compressedBlob, selectedFile.name || 'image.jpg');
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-prescription`, {
         method: 'POST',
@@ -66,7 +109,7 @@ const Scan: React.FC = () => {
     } catch (error: any) {
       clearTimeout(timeoutId);
       console.error(error);
-      const msg = error.name === 'AbortError'
+      const msg = error.name === 'AbortError' || error.message === 'TimeoutError'
         ? 'Prescription scan timed out. The AI service may be busy. Please try again.'
         : `Prescription scan failed: ${error.message || 'Unknown error'}`;
       setState({ status: 'error', message: msg });

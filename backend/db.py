@@ -1,6 +1,7 @@
 import os
 import psycopg2
 import psycopg2.extras
+from psycopg2 import pool
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,11 +11,34 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL must be set in environment variables")
 
+# Initialize a connection pool
+try:
+    db_pool = pool.SimpleConnectionPool(1, 20, DATABASE_URL)
+except Exception as e:
+    print(f"Error creating connection pool: {e}")
+    db_pool = None
+
 def get_db_connection():
-    """Get a new database connection. Always close after use."""
+    """Get a database connection from the pool."""
+    if db_pool:
+        conn = db_pool.getconn()
+        conn.autocommit = False
+        return conn
     conn = psycopg2.connect(DATABASE_URL)
     conn.autocommit = False
     return conn
+
+def release_db_connection(conn, rollback=False):
+    """Return the connection to the pool or close it."""
+    if rollback:
+        try:
+            conn.rollback()
+        except:
+            pass
+    if db_pool:
+        db_pool.putconn(conn)
+    else:
+        conn.close()
 
 def query(sql, params=None, fetch_one=False):
     """Execute a SELECT query and return results as list of dicts."""
@@ -26,8 +50,13 @@ def query(sql, params=None, fetch_one=False):
                 row = cur.fetchone()
                 return dict(row) if row else None
             return [dict(r) for r in cur.fetchall()]
+    except Exception:
+        release_db_connection(conn, rollback=True)
+        raise
     finally:
-        conn.close()
+        # Avoid closing if it was already released due to exception
+        if not conn.closed:
+            release_db_connection(conn)
 
 def execute(sql, params=None, returning=False):
     """Execute an INSERT/UPDATE/DELETE query."""
@@ -43,10 +72,11 @@ def execute(sql, params=None, returning=False):
             conn.commit()
             return result
     except Exception:
-        conn.rollback()
+        release_db_connection(conn, rollback=True)
         raise
     finally:
-        conn.close()
+        if not conn.closed:
+            release_db_connection(conn)
 
 def execute_many(sql, params_list):
     """Execute a batch INSERT."""
@@ -62,10 +92,12 @@ def execute_many(sql, params_list):
             conn.commit()
             return results
     except Exception:
-        conn.rollback()
+        release_db_connection(conn, rollback=True)
         raise
     finally:
-        conn.close()
+        # Avoid closing if it was already released due to exception
+        if not conn.closed:
+            release_db_connection(conn)
 
 # Test connection on import
 try:

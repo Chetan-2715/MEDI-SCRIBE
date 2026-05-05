@@ -7,28 +7,47 @@ router = APIRouter()
 @router.get("/prescriptions")
 async def get_prescriptions(user_id: str = Depends(get_current_user)):
     try:
-        # Fetch prescriptions with their medicines
+        # Fetch prescriptions without the heavy image_url for the list view
         prescriptions = query(
-            "SELECT * FROM prescriptions WHERE user_id = %s ORDER BY created_at DESC",
+            "SELECT id, user_id, doctor_name, patient_name, notes, created_at FROM prescriptions WHERE user_id = %s ORDER BY created_at DESC",
             (user_id,)
         )
 
+        if not prescriptions:
+            return []
+
+        # Convert to strings and format dates for frontend
         for pres in prescriptions:
             pres["id"] = str(pres["id"])
             pres["user_id"] = str(pres["user_id"])
             if pres.get("created_at"):
                 pres["created_at"] = pres["created_at"].isoformat()
-
-            meds = query(
-                "SELECT * FROM medicines WHERE prescription_id = %s",
-                (pres["id"],)
-            )
-            for m in meds:
-                m["id"] = str(m["id"])
-                m["prescription_id"] = str(m["prescription_id"])
-                if m.get("created_at"):
-                    m["created_at"] = m["created_at"].isoformat()
-            pres["medicines"] = meds
+            pres["medicines"] = []
+            
+        pres_ids = tuple(p["id"] for p in prescriptions)
+        
+        # Batch fetch all medicines for all returned prescriptions in a single query
+        meds = query(
+            "SELECT * FROM medicines WHERE prescription_id IN %s",
+            (pres_ids,)
+        )
+        
+        # Group medicines by prescription_id
+        meds_by_pres = {}
+        for m in meds:
+            m["id"] = str(m["id"])
+            pid = str(m["prescription_id"])
+            m["prescription_id"] = pid
+            if m.get("created_at"):
+                m["created_at"] = m["created_at"].isoformat()
+            
+            if pid not in meds_by_pres:
+                meds_by_pres[pid] = []
+            meds_by_pres[pid].append(m)
+            
+        # Attach medicines to their respective prescriptions
+        for pres in prescriptions:
+            pres["medicines"] = meds_by_pres.get(pres["id"], [])
 
         return prescriptions
     except Exception as e:

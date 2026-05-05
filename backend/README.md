@@ -10,9 +10,9 @@ This is the FastAPI backend for Medi-Scribe, handling OCR, AI processing, and Da
     pip install -r requirements.txt
     ```
 
-2.  **Environment Variables**:
+1.  **Environment Variables**:
     Copy `.env.example` to `.env` and fill in:
-    *   `SUPABASE_URL`, `SUPABASE_KEY` (Service Role)
+    *   `DATABASE_URL` (Neon PostgreSQL connection string)
     *   `GEMINI_API_KEY`
     *   `GOOGLE_APPLICATION_CREDENTIALS` (Path to Google Cloud JSON key)
 

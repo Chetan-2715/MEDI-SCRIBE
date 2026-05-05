@@ -13,7 +13,21 @@ const Landing: React.FC = () => {
         if (isAuthenticated) {
             navigate('/dashboard');
         } else {
-            navigate('/login');
+            const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+            const redirectUri = window.location.origin;
+            const scope = 'openid email profile';
+            const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+            const authUrl =
+                `https://accounts.google.com/o/oauth2/v2/auth` +
+                `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                `&response_type=id_token` +
+                `&scope=${encodeURIComponent(scope)}` +
+                `&nonce=${nonce}` +
+                `&prompt=select_account`;
+
+            window.location.href = authUrl;
         }
     };
 

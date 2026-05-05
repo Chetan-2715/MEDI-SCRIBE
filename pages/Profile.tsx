@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Settings, LogOut, Shield, Trash2 } from 'lucide-react';
+import { LogOut, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -11,7 +10,7 @@ const Profile: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const handleDeleteAccount = async () => {
@@ -20,7 +19,7 @@ const Profile: React.FC = () => {
         if (token) {
           await authService.deleteAccount(token);
           logout();
-          navigate('/login');
+          navigate('/');
         }
       } catch (error) {
         console.error("Failed to delete account:", error);
